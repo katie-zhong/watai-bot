@@ -1,0 +1,25 @@
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://watai:watai@db:5432/watai
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: watai
+      POSTGRES_PASSWORD: watai
+      POSTGRES_DB: watai
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U watai"]
+      interval: 5s
+      retries: 10
+volumes:
+  pgdata:

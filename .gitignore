@@ -1,0 +1,12 @@
+# secrets
+.env*
+!.env.example
+*service-account*.json
+.claude/settings.local.json
+
+# node
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
