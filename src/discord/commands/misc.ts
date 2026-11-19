@@ -14,9 +14,9 @@ import { startCheckin } from '../../jobs/checkin.ts';
 import { discordMessenger } from '../../jobs/messenger.ts';
 import { getConfig, updateConfig } from '../../services/config.ts';
 import { access, autocomplete, type Command, fail } from '../util.ts';
+import { WEEKDAYS } from './digest.ts';
 
 const teamChoices = TEAMS.map((t) => ({ name: title(t), value: t }));
-const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 export const checkin: Command = {
   data: new SlashCommandBuilder()
@@ -65,7 +65,7 @@ export function configEmbed(c: GuildConfig): EmbedBuilder {
     .addFields(
       { name: 'Timezone', value: c.timezone, inline: true },
       { name: 'Morning hour', value: `${c.reminderHour}:00`, inline: true },
-      { name: 'Sunday digest', value: ch(c.digestChannelId), inline: true },
+      { name: 'Digests', value: '`/digest list`', inline: true },
       {
         name: 'Default ping channels',
         value: c.reminderChannelIds.map((id) => `<#${id}>`).join(' ') || '—',
@@ -78,7 +78,7 @@ export function configEmbed(c: GuildConfig): EmbedBuilder {
             : 'off',
       },
       {
-        name: 'Default ping (org-wide check-ins)',
+        name: 'Default ping (org-wide check-ins & digests)',
         value: c.defaultPingRoleId
           ? roleMention(c.defaultPingRoleId, c.guildId)
           : '— (falls back to every mapped team role)',
@@ -125,15 +125,9 @@ export const config: Command = {
         .addIntegerOption((o) =>
           o
             .setName('morning_hour')
-            .setDescription('Hour (0–23) reminders, digest and check-in post')
+            .setDescription('Hour (0–23) reminders, digests and check-ins post')
             .setMinValue(0)
             .setMaxValue(23),
-        )
-        .addChannelOption((o) =>
-          o
-            .setName('digest_channel')
-            .setDescription('Where the Sunday digest posts')
-            .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement),
         )
         .addChannelOption((o) =>
           o
@@ -144,7 +138,7 @@ export const config: Command = {
         .addRoleOption((o) =>
           o
             .setName('default_ping')
-            .setDescription('Role org-wide check-ins ping (pick @everyone for everyone)'),
+            .setDescription('Role org-wide check-ins and digests ping (@everyone allowed)'),
         )
         .addBooleanOption((o) =>
           o.setName('clear_default_ping').setDescription('Stop pinging a default role'),
@@ -215,8 +209,6 @@ export const config: Command = {
       }
       const hour = i.options.getInteger('morning_hour');
       if (hour != null) patch.reminderHour = hour;
-      const digest = i.options.getChannel('digest_channel');
-      if (digest) patch.digestChannelId = digest.id;
       const checkinChannel = i.options.getChannel('checkin_channel');
       if (checkinChannel) patch.checkinChannelId = checkinChannel.id;
       const ping = i.options.getRole('default_ping');
@@ -254,6 +246,7 @@ const HELP: [string, string][] = [
   ['/artifact add · remove', 'Pin key links (spec, repo, designs) to a project'],
   ['/milestone add · remove', 'Group a project’s tasks'],
   ['/checkin', 'Ping the team and open a thread for async updates'],
+  ['/digest create · edit · delete · send · list', 'Weekly deadline digests, e.g. one per team'],
   ['/config show · set · team · access', 'Bot admins: channels, default ping, team roles, access'],
 ];
 
@@ -267,7 +260,7 @@ export const help: Command = {
         [
           ...HELP.map(([c, d]) => `**${c}** — ${d}`),
           '',
-          'Owners are pinged 3 days before, 1 day before and on the due date, then daily for 3 days once overdue. Reminders carry **Done** and **Snooze** buttons. A digest posts every Sunday morning.',
+          'Owners are pinged 3 days before, 1 day before and on the due date, then daily for 3 days once overdue. Reminders carry **Done** and **Snooze** buttons. Digests post weekly (default Sunday morning).',
           'Dates accept `2026-12-01`, `friday`, `dec 3 5pm`, `in 2 weeks`. Terms: `W27` Jan–Apr, `S26` May–Aug, `F26` Sep–Dec.',
         ].join('\n'),
       );

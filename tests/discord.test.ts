@@ -57,6 +57,7 @@ describe('command definitions', () => {
       'artifact',
       'milestone',
       'checkin',
+      'digest',
       'config',
       'help',
     ]);

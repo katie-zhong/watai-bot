@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { accessLevel, roleMention, setRoleLevel } from '../src/domain/access.ts';
 import { daysUntil, parseDue } from '../src/domain/dates.ts';
+import { digestMention } from '../src/domain/digest.ts';
 import { reminderDue } from '../src/domain/reminders.ts';
 import { normalizeTerm, termFor } from '../src/domain/term.ts';
 import { resolveChannels } from '../src/services/routing.ts';
@@ -81,7 +82,6 @@ describe('resolveChannels', () => {
   const config = {
     teamChannels: { events: 'c-events', finance: 'c-fin' },
     reminderChannelIds: ['c-default'],
-    digestChannelId: 'c-digest',
   };
   it('prefers task, then project, then team, then server default', () => {
     const project = { channelIds: ['c-proj'] };
@@ -102,7 +102,7 @@ describe('resolveChannels', () => {
         ...config,
         reminderChannelIds: [],
       }),
-    ).toEqual(['c-digest']);
+    ).toEqual([]);
   });
 });
 
@@ -124,5 +124,37 @@ describe('access', () => {
   it('mentions the @everyone role correctly', () => {
     expect(roleMention('g1', 'g1')).toBe('@everyone');
     expect(roleMention('r1', 'g1')).toBe('<@&r1>');
+  });
+});
+
+describe('digestMention', () => {
+  const config = { defaultPingRoleId: 'r-all', teamRoles: { events: 'r-ev' } };
+  const d = (over = {}) => ({
+    pingMode: 'auto',
+    pingRoleId: null,
+    teams: [],
+    guildId: 'g1',
+    ...over,
+  });
+  it('auto: team roles, else project members, else the server default', () => {
+    expect(digestMention(d({ teams: ['events'] }), config).text).toBe('<@&r-ev>');
+    expect(digestMention(d({ teams: ['finance'] }), config).text).toBe('<@&r-all>');
+    expect(digestMention(d(), config).text).toBe('<@&r-all>');
+    expect(digestMention(d(), config, { leadId: 'l', memberIds: ['l', 'm'] }).text).toBe(
+      '<@l> <@m>',
+    );
+    expect(digestMention(d(), { ...config, defaultPingRoleId: null }).text).toBe('');
+  });
+  it('role and none override auto', () => {
+    expect(
+      digestMention(d({ pingMode: 'role', pingRoleId: 'r-x', teams: ['events'] }), config).text,
+    ).toBe('<@&r-x>');
+    expect(
+      digestMention(d({ pingMode: 'role', pingRoleId: 'g1' }), config).allowedMentions,
+    ).toEqual({ parse: ['everyone'] });
+    expect(digestMention(d({ pingMode: 'none' }), config)).toEqual({
+      text: '',
+      allowedMentions: {},
+    });
   });
 });

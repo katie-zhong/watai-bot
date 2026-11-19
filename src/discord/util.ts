@@ -12,6 +12,7 @@ import type { Db } from '../db/client.ts';
 import type { Project } from '../db/schema.ts';
 import { type AccessLevel, accessLevel } from '../domain/access.ts';
 import { getConfig } from '../services/config.ts';
+import { listDigests } from '../services/digests.ts';
 import { listMilestones, listProjects } from '../services/projects.ts';
 import { searchTasks } from '../services/tasks.ts';
 
@@ -72,6 +73,10 @@ export async function autocomplete(i: AutocompleteInteraction<'cached'>, ctx: Ct
   if (focused.name === 'project') {
     const rows = await listProjects(ctx.db, i.guildId, { query });
     return i.respond(rows.slice(0, 25).map((p) => ({ name: clip(p.name), value: p.id })));
+  }
+  if (focused.name === 'digest') {
+    const rows = await listDigests(ctx.db, i.guildId, query);
+    return i.respond(rows.slice(0, 25).map((d) => ({ name: clip(d.name), value: d.id })));
   }
   if (focused.name === 'milestone') {
     const projectId = i.options.getInteger('project');

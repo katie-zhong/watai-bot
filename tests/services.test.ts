@@ -2,6 +2,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../src/db/client.ts';
 import { getConfig, updateConfig } from '../src/services/config.ts';
 import {
+  createDigest,
+  DuplicateDigestError,
+  deleteDigest,
+  listDigests,
+  updateDigest,
+} from '../src/services/digests.ts';
+import {
   addArtifact,
   addMilestone,
   createProject,
@@ -128,8 +135,29 @@ describe('config', () => {
   it('creates defaults on first read and merges updates', async () => {
     const c = await getConfig(db, GUILD);
     expect([c.timezone, c.reminderHour]).toEqual(['America/Toronto', 9]);
-    const u = await updateConfig(db, GUILD, { teamRoles: { events: 'r1' }, digestChannelId: 'd' });
+    const u = await updateConfig(db, GUILD, {
+      teamRoles: { events: 'r1' },
+      defaultPingRoleId: 'd',
+    });
     expect(u.teamRoles).toEqual({ events: 'r1' });
-    expect((await getConfig(db, GUILD)).digestChannelId).toBe('d');
+    expect((await getConfig(db, GUILD)).defaultPingRoleId).toBe('d');
+  });
+});
+
+describe('digests', () => {
+  const make = (name: string, guildId = GUILD) =>
+    createDigest(db, { guildId, name, channelId: 'c', createdBy: 'u1' });
+  it('creates, renames, lists and deletes per server', async () => {
+    const a = await make('Events');
+    await make('Finance');
+    await make('Events', 'g2');
+    await expect(make('Events')).rejects.toBeInstanceOf(DuplicateDigestError);
+    await expect(updateDigest(db, GUILD, a.id, { name: 'Finance' })).rejects.toBeInstanceOf(
+      DuplicateDigestError,
+    );
+    expect((await listDigests(db, GUILD, 'fin')).map((d) => d.name)).toEqual(['Finance']);
+    expect(await deleteDigest(db, 'g2', a.id)).toBe(false);
+    expect(await deleteDigest(db, GUILD, a.id)).toBe(true);
+    expect(await listDigests(db, GUILD)).toHaveLength(1);
   });
 });

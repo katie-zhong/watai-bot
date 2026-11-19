@@ -18,8 +18,6 @@ export const guildConfig = pgTable('guild_config', {
   timezone: text('timezone').notNull().default('America/Toronto'),
   reminderHour: integer('reminder_hour').notNull().default(9),
   reminderChannelIds: ids('reminder_channel_ids'),
-  digestChannelId: text('digest_channel_id'),
-  lastDigestOn: date('last_digest_on', { mode: 'string' }),
   checkinChannelId: text('checkin_channel_id'),
   /** ISO weekday 1 (Mon) – 7 (Sun); null disables the scheduled check-in. */
   checkinWeekday: integer('checkin_weekday'),
@@ -51,6 +49,29 @@ export const projects = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex('projects_guild_name').on(t.guildId, t.name)],
+);
+
+export const digests = pgTable(
+  'digests',
+  {
+    id: serial('id').primaryKey(),
+    guildId: text('guild_id').notNull(),
+    name: text('name').notNull(),
+    channelId: text('channel_id').notNull(),
+    /** ISO weekday 1 (Mon) – 7 (Sun). */
+    weekday: integer('weekday').notNull().default(7),
+    /** null uses the server's morning hour. */
+    hour: integer('hour'),
+    /** Empty means every team. */
+    teams: ids('teams'),
+    projectId: integer('project_id').references(() => projects.id, { onDelete: 'cascade' }),
+    /** auto | role | none — see src/domain/digest.ts. */
+    pingMode: text('ping_mode').notNull().default('auto'),
+    pingRoleId: text('ping_role_id'),
+    lastSentOn: date('last_sent_on', { mode: 'string' }),
+    createdBy: text('created_by').notNull(),
+  },
+  (t) => [uniqueIndex('digests_guild_name').on(t.guildId, t.name)],
 );
 
 export const artifacts = pgTable('artifacts', {
@@ -107,6 +128,8 @@ export const tasks = pgTable(
 export type GuildConfig = typeof guildConfig.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type Artifact = typeof artifacts.$inferSelect;
+export type Digest = typeof digests.$inferSelect;
+export type NewDigest = typeof digests.$inferInsert;
 export type Milestone = typeof milestones.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type NewTask = typeof tasks.$inferInsert;

@@ -19,7 +19,7 @@ Node ≥22.18 (runs TypeScript natively, no build step) · strict TypeScript · 
 | `src/domain/` | Terms, date parsing, reminder schedule | Pure: no DB, no Discord |
 | `src/services/` | All database queries | Take `db` as first argument; scope every query by `guildId` |
 | `src/discord/` | Commands, embeds, select-menu panels, component router | Thin: validate → call a service → render |
-| `src/jobs/` | Hourly reminders, Sunday digest, check-ins | Reach Discord only through `Messenger`; idempotent per local day |
+| `src/jobs/` | Hourly reminders, digests, check-ins | Reach Discord only through `Messenger`; idempotent per local day |
 | `src/sheets/` | One-way Google Sheets mirror | Never read from the sheet |
 | `drizzle/` | Generated SQL migrations | Never hand-edit; run `pnpm db:generate` after changing `src/db/schema.ts` |
 

@@ -23,6 +23,7 @@ Discord bot that tracks tasks, deadlines and key artifacts for WAT.ai, with auto
 | `/artifact add · remove` | Pin key links to a project |
 | `/milestone add · remove` | Group a project's tasks |
 | `/checkin [team] [project]` | Ping the audience, open a thread seeded with each person's open tasks |
+| `/digest create · edit · delete · send · list` | Weekly digests; each has a channel, day, hour, team/project scope and ping (managers+) |
 | `/config show · set · team · access` | Bot admin: timezone, morning hour, channels, default ping, team roles, access levels, scheduled check-in |
 | `/help` | Command list |
 
@@ -30,8 +31,8 @@ Discord bot that tracks tasks, deadlines and key artifacts for WAT.ai, with auto
 
 - **Reminders:** owners pinged 3 days before, 1 day before, on the due date, then daily for 3 days overdue. One ping per task per day, at the morning hour (default 9:00 America/Toronto).
 - **Reminder buttons:** Done · Snooze 1 day · snooze 2 days / 3 days / 1 week / 2 weeks.
-- **Ping channels (multi):** task's own → project's → its teams' channels → server default → digest channel.
-- **Weekly digest:** Sunday morning; overdue, blocked, and due this week by team.
+- **Ping channels (multi):** task's own → project's → its teams' channels → server default.
+- **Digests (multiple):** each posts weekly (default Sunday, server morning hour) to its channel: overdue, blocked, due this week by team, limited to its teams/project. Ping `auto` = its teams' roles → project members → server default ping; or a chosen role; or none.
 - **Scheduled check-in:** optional, weekly on a chosen weekday.
 - **Check-in pings:** team → that team's role; project → its lead and members; org-wide → the default ping role (any role, or @everyone), else every mapped team role.
 - **Google Sheet:** `Tasks` and `Projects` tabs rewritten ~10 s after any change and hourly.
@@ -43,7 +44,7 @@ Bot access levels are granted per Discord role with `/config access`:
 | Level | Who | Can |
 | --- | --- | --- |
 | Admin | Manage Server, or an admin role | `/config`, plus everything a manager can |
-| Manager | A manager role (e.g. execs, TPMs) | Edit, close or delete any task or project |
+| Manager | A manager role (e.g. execs, TPMs) | Edit, close or delete any task or project; manage digests |
 | Member | Everyone else | Create and assign anything; edit tasks they own or created, projects they lead or are in |
 
 ## Decisions
@@ -57,6 +58,7 @@ Bot access levels are granted per Discord role with `/config access`:
 | Sheet is a one-way mirror | Two-way sync needs conflict resolution; edits made in the sheet are overwritten |
 | Multi-select via menus after the command | Slash-command options can't multi-select |
 | Access via bot-level role mapping, not Discord's command permissions | Discord's per-command permissions can hide `/config` but can't express "may edit others' tasks" |
+| Hosting: Railway | Least ops; push-to-deploy from GitHub; managed Postgres; hand-over is workspace membership |
 | Guilds intent only | No privileged intents, so no Discord approval needed |
 | Single package | One deployable; split into workspaces when the web dashboard arrives |
 
