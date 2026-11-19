@@ -98,15 +98,18 @@ export async function openTasksForGuilds(db: Db, guildIds: string[]): Promise<Ta
     .where(and(inArray(tasks.guildId, guildIds), ne(tasks.status, 'done')));
 }
 
-/** Anyone can create and assign; changing a task is limited to people attached to it. */
+/**
+ * Anyone can create and assign; changing a task is limited to people attached to it,
+ * or managers/admins (`canEditAll`).
+ */
 export function canModify(
   task: Pick<Task, 'ownerIds' | 'createdBy'>,
   project: Pick<Project, 'leadId'> | undefined,
   userId: string,
-  isAdmin: boolean,
+  canEditAll: boolean,
 ): boolean {
   return (
-    isAdmin ||
+    canEditAll ||
     task.createdBy === userId ||
     task.ownerIds.includes(userId) ||
     project?.leadId === userId

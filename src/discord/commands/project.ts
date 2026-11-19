@@ -26,7 +26,14 @@ import {
 import { listTasks } from '../../services/tasks.ts';
 import { projectEmbed } from '../embeds.ts';
 import { projectPanel } from '../panels.ts';
-import { autocomplete, type Command, type Ctx, canManageProject, fail, isAdmin } from '../util.ts';
+import {
+  autocomplete,
+  type Command,
+  type Ctx,
+  canEditAll,
+  canManageProject,
+  fail,
+} from '../util.ts';
 
 type I = ChatInputCommandInteraction<'cached'>;
 const colorChoices = COLOR_NAMES.map((c) => ({ name: title(c), value: c }));
@@ -48,7 +55,7 @@ async function load(i: I, ctx: Ctx, mustManage: boolean): Promise<Project | null
     await fail(i, 'Pick a project from the list.');
     return null;
   }
-  if (mustManage && !canManageProject(project, i.user.id, isAdmin(i))) {
+  if (mustManage && !canManageProject(project, i.user.id, await canEditAll(i, ctx))) {
     await fail(i, 'Only the lead, members, creator or an admin can change this project.');
     return null;
   }

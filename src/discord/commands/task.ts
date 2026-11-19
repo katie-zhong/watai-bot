@@ -15,7 +15,7 @@ import {
 } from '../../services/tasks.ts';
 import { taskEmbed } from '../embeds.ts';
 import { taskPanel } from '../panels.ts';
-import { autocomplete, type Command, type Ctx, fail, isAdmin } from '../util.ts';
+import { autocomplete, type Command, type Ctx, canEditAll, fail } from '../util.ts';
 
 const colorChoices = COLOR_NAMES.map((c) => ({ name: title(c), value: c }));
 const DUE_HELP = 'e.g. `2026-12-01`, `friday`, `dec 3 5pm`, `in 2 weeks`';
@@ -185,7 +185,7 @@ async function load(i: I, ctx: Ctx, mustModify: boolean) {
     return null;
   }
   const project = task.projectId ? await getProject(ctx.db, i.guildId, task.projectId) : undefined;
-  if (mustModify && !canModify(task, project, i.user.id, isAdmin(i))) {
+  if (mustModify && !canModify(task, project, i.user.id, await canEditAll(i, ctx))) {
     await fail(i, 'Only the owners, creator, project lead or an admin can change this task.');
     return null;
   }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { accessLevel, roleMention, setRoleLevel } from '../src/domain/access.ts';
 import { daysUntil, parseDue } from '../src/domain/dates.ts';
 import { reminderDue } from '../src/domain/reminders.ts';
 import { normalizeTerm, termFor } from '../src/domain/term.ts';
@@ -102,5 +103,26 @@ describe('resolveChannels', () => {
         reminderChannelIds: [],
       }),
     ).toEqual(['c-digest']);
+  });
+});
+
+describe('access', () => {
+  const config = { adminRoleIds: ['r-admin'], managerRoleIds: ['r-exec', 'r-tpm'] };
+  it('maps roles to the highest level held', () => {
+    expect(accessLevel(['r-tpm'], false, config)).toBe('manager');
+    expect(accessLevel(['r-tpm', 'r-admin'], false, config)).toBe('admin');
+    expect(accessLevel(['r-other'], false, config)).toBe('member');
+  });
+  it('always treats Manage Server as admin', () => {
+    expect(accessLevel([], true, { adminRoleIds: [], managerRoleIds: [] })).toBe('admin');
+  });
+  it('keeps each role at one level', () => {
+    const promoted = setRoleLevel(config, 'r-exec', 'admin');
+    expect(promoted).toEqual({ adminRoleIds: ['r-admin', 'r-exec'], managerRoleIds: ['r-tpm'] });
+    expect(setRoleLevel(promoted, 'r-exec', 'member').adminRoleIds).toEqual(['r-admin']);
+  });
+  it('mentions the @everyone role correctly', () => {
+    expect(roleMention('g1', 'g1')).toBe('@everyone');
+    expect(roleMention('r1', 'g1')).toBe('<@&r1>');
   });
 });

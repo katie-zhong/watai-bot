@@ -4,16 +4,16 @@ import {
   ChannelType,
   EmbedBuilder,
   MessageFlags,
-  PermissionFlagsBits,
   SlashCommandBuilder,
 } from 'discord.js';
 import { DateTime } from 'luxon';
 import type { GuildConfig } from '../../db/schema.ts';
+import { type AccessLevel, roleMention, setRoleLevel } from '../../domain/access.ts';
 import { COLORS, TEAMS, title } from '../../domain/constants.ts';
 import { startCheckin } from '../../jobs/checkin.ts';
 import { discordMessenger } from '../../jobs/messenger.ts';
 import { getConfig, updateConfig } from '../../services/config.ts';
-import { autocomplete, type Command, fail } from '../util.ts';
+import { access, autocomplete, type Command, fail } from '../util.ts';
 
 const teamChoices = TEAMS.map((t) => ({ name: title(t), value: t }));
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -77,8 +77,24 @@ export function configEmbed(c: GuildConfig): EmbedBuilder {
             ? `${WEEKDAYS[c.checkinWeekday - 1]}s in ${ch(c.checkinChannelId)}`
             : 'off',
       },
+      {
+        name: 'Default ping (org-wide check-ins)',
+        value: c.defaultPingRoleId
+          ? roleMention(c.defaultPingRoleId, c.guildId)
+          : '— (falls back to every mapped team role)',
+      },
+      { name: 'Access', value: accessLines(c) },
       { name: 'Teams', value: teams.join('\n') },
     );
+}
+
+function accessLines(c: GuildConfig): string {
+  const roles = (ids: string[]) => ids.map((r) => `<@&${r}>`).join(' ') || '—';
+  return [
+    `**Admin:** Manage Server, ${roles(c.adminRoleIds)}`,
+    `**Manager:** ${roles(c.managerRoleIds)}`,
+    '**Everyone else:** create/assign anything; edit what they own, created or lead',
+  ].join('\n');
 }
 
 export const configPanel = (c: GuildConfig) => {
@@ -95,8 +111,7 @@ export const configPanel = (c: GuildConfig) => {
 export const config: Command = {
   data: new SlashCommandBuilder()
     .setName('config')
-    .setDescription('Server settings (admins)')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+    .setDescription('Server settings (bot admins)')
     .addSubcommand((s) =>
       s.setName('show').setDescription('Show settings; pick default ping channels'),
     )
@@ -126,6 +141,14 @@ export const config: Command = {
             .setDescription('Where the scheduled check-in posts')
             .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement),
         )
+        .addRoleOption((o) =>
+          o
+            .setName('default_ping')
+            .setDescription('Role org-wide check-ins ping (pick @everyone for everyone)'),
+        )
+        .addBooleanOption((o) =>
+          o.setName('clear_default_ping').setDescription('Stop pinging a default role'),
+        )
         .addIntegerOption((o) =>
           o
             .setName('checkin_day')
@@ -133,6 +156,23 @@ export const config: Command = {
             .addChoices(
               { name: 'Off', value: 0 },
               ...WEEKDAYS.map((d, n) => ({ name: d, value: n + 1 })),
+            ),
+        ),
+    )
+    .addSubcommand((s) =>
+      s
+        .setName('access')
+        .setDescription('Grant a Discord role a bot access level')
+        .addRoleOption((o) => o.setName('role').setDescription('Role').setRequired(true))
+        .addStringOption((o) =>
+          o
+            .setName('level')
+            .setDescription('What the role can do')
+            .setRequired(true)
+            .addChoices(
+              { name: 'Admin — settings + edit anything', value: 'admin' },
+              { name: 'Manager — edit/close/delete any task or project', value: 'manager' },
+              { name: 'Member — remove this role’s grant', value: 'member' },
             ),
         ),
     )
@@ -156,9 +196,16 @@ export const config: Command = {
         ),
     ),
   async execute(i, ctx) {
+    if ((await access(i, ctx)) !== 'admin')
+      return fail(i, 'Bot admins only — ask someone with Manage Server or an admin role.');
     const sub = i.options.getSubcommand();
     let current = await getConfig(ctx.db, i.guildId);
-    if (sub === 'set') {
+    if (sub === 'access') {
+      const role = i.options.getRole('role', true);
+      if (role.id === i.guildId) return fail(i, 'Pick a specific role, not @everyone.');
+      const level = i.options.getString('level', true) as AccessLevel;
+      current = await updateConfig(ctx.db, i.guildId, setRoleLevel(current, role.id, level));
+    } else if (sub === 'set') {
       const patch: Partial<GuildConfig> = {};
       const tz = i.options.getString('timezone');
       if (tz) {
@@ -172,6 +219,9 @@ export const config: Command = {
       if (digest) patch.digestChannelId = digest.id;
       const checkinChannel = i.options.getChannel('checkin_channel');
       if (checkinChannel) patch.checkinChannelId = checkinChannel.id;
+      const ping = i.options.getRole('default_ping');
+      if (ping) patch.defaultPingRoleId = ping.id;
+      if (i.options.getBoolean('clear_default_ping')) patch.defaultPingRoleId = null;
       const day = i.options.getInteger('checkin_day');
       if (day != null) patch.checkinWeekday = day || null;
       current = await updateConfig(ctx.db, i.guildId, patch);
@@ -204,7 +254,7 @@ const HELP: [string, string][] = [
   ['/artifact add · remove', 'Pin key links (spec, repo, designs) to a project'],
   ['/milestone add · remove', 'Group a project’s tasks'],
   ['/checkin', 'Ping the team and open a thread for async updates'],
-  ['/config show · set · team', 'Admins: channels, timezone, team roles, schedules'],
+  ['/config show · set · team · access', 'Bot admins: channels, default ping, team roles, access'],
 ];
 
 export const help: Command = {

@@ -33,7 +33,11 @@ const sheets =
   env.GOOGLE_SHEET_ID && env.GOOGLE_SERVICE_ACCOUNT_JSON
     ? createSheetSync(db, env.GOOGLE_SHEET_ID, env.GOOGLE_SERVICE_ACCOUNT_JSON, resolveNames)
     : undefined;
-if (!sheets) console.log('Google Sheets mirror disabled (no sheet id / service account).');
+console.log(
+  sheets
+    ? `Google Sheets mirror on: ${env.GOOGLE_SHEET_ID}`
+    : 'Google Sheets mirror off (no sheet id / service account).',
+);
 
 const ctx: Ctx = { db, client, sync: () => sheets?.schedule() };
 const byName = new Map(commands.map((c) => [c.data.name, c]));

@@ -82,20 +82,18 @@ function audience(
       scope: project.name,
     };
   }
-  const roles = (team ? [config.teamRoles[team]] : Object.values(config.teamRoles)).filter(
-    (r): r is string => !!r,
-  );
   const scope = team ? title(team) : '';
-  if (roles.length)
-    return {
-      mention: [...new Set(roles)].map((r) => `<@&${r}>`).join(' '),
-      allowedMentions: { roles },
-      scope,
-    };
-  // No role mapped: a team check-in pings nobody rather than the whole server.
-  return team
-    ? { mention: '', allowedMentions: {}, scope }
-    : { mention: '@everyone', allowedMentions: { parse: ['everyone' as const] }, scope };
+  const ping = config.defaultPingRoleId;
+  if (!team && ping === config.guildId)
+    return { mention: '@everyone', allowedMentions: { parse: ['everyone' as const] }, scope };
+  // Org-wide: the configured default ping, else every mapped team role. Never an implicit @everyone.
+  const roles = team ? [config.teamRoles[team]] : ping ? [ping] : Object.values(config.teamRoles);
+  const unique = [...new Set(roles.filter((r): r is string => !!r))];
+  return {
+    mention: unique.map((r) => `<@&${r}>`).join(' '),
+    allowedMentions: { roles: unique },
+    scope,
+  };
 }
 
 /** Packs text blocks into embed descriptions (4096-char limit). */

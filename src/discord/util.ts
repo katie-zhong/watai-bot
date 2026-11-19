@@ -2,6 +2,7 @@ import {
   type AutocompleteInteraction,
   type ChatInputCommandInteraction,
   type Client,
+  type GuildMember,
   MessageFlags,
   PermissionFlagsBits,
   type RESTPostAPIApplicationCommandsJSONBody,
@@ -9,6 +10,8 @@ import {
 } from 'discord.js';
 import type { Db } from '../db/client.ts';
 import type { Project } from '../db/schema.ts';
+import { type AccessLevel, accessLevel } from '../domain/access.ts';
+import { getConfig } from '../services/config.ts';
 import { listMilestones, listProjects } from '../services/projects.ts';
 import { searchTasks } from '../services/tasks.ts';
 
@@ -25,8 +28,25 @@ export interface Command {
   autocomplete?(i: AutocompleteInteraction<'cached'>, ctx: Ctx): Promise<void>;
 }
 
-export const isAdmin = (i: { memberPermissions: { has(p: bigint): boolean } }) =>
-  i.memberPermissions.has(PermissionFlagsBits.ManageGuild);
+interface Member {
+  guildId: string;
+  member: GuildMember;
+  memberPermissions: { has(p: bigint): boolean };
+}
+
+/** The caller's bot access level, from Manage Server and their roles (see /config access). */
+export async function access(i: Member, ctx: Pick<Ctx, 'db'>): Promise<AccessLevel> {
+  const config = await getConfig(ctx.db, i.guildId);
+  return accessLevel(
+    [...i.member.roles.cache.keys()],
+    i.memberPermissions.has(PermissionFlagsBits.ManageGuild),
+    config,
+  );
+}
+
+/** Managers and admins can change any task or project. */
+export const canEditAll = async (i: Member, ctx: Pick<Ctx, 'db'>) =>
+  (await access(i, ctx)) !== 'member';
 
 type Failable = Pick<RepliableInteraction, 'replied' | 'deferred' | 'reply' | 'followUp'>;
 
@@ -36,8 +56,8 @@ export async function fail(i: Failable, message: string): Promise<void> {
   else await i.reply(payload);
 }
 
-export const canManageProject = (p: Project, userId: string, admin: boolean) =>
-  admin || p.leadId === userId || p.createdBy === userId || p.memberIds.includes(userId);
+export const canManageProject = (p: Project, userId: string, editAll: boolean) =>
+  editAll || p.leadId === userId || p.createdBy === userId || p.memberIds.includes(userId);
 
 const clip = (s: string) => (s.length > 100 ? `${s.slice(0, 99)}…` : s);
 

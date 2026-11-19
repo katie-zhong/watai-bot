@@ -7,7 +7,7 @@ import { configEmbed, configPanel } from './commands/misc.ts';
 import { renderProject } from './commands/project.ts';
 import { taskEmbed } from './embeds.ts';
 import { projectPanel, taskPanel } from './panels.ts';
-import { type Ctx, canManageProject, fail, isAdmin } from './util.ts';
+import { access, type Ctx, canEditAll, canManageProject, fail } from './util.ts';
 
 type I = MessageComponentInteraction<'cached'>;
 
@@ -17,7 +17,7 @@ export async function handleComponent(i: I, ctx: Ctx): Promise<void> {
   if (scope === 't') return onTask(i, ctx, action, Number(id), arg);
   if (scope === 'p') return onProject(i, ctx, action, Number(id));
   if (scope === 'c' && action === 'reminders' && i.isChannelSelectMenu()) {
-    if (!isAdmin(i)) return fail(i, 'Admins only.');
+    if ((await access(i, ctx)) !== 'admin') return fail(i, 'Bot admins only.');
     const updated = await updateConfig(ctx.db, i.guildId, { reminderChannelIds: i.values });
     await i.update({ embeds: [configEmbed(updated)], components: configPanel(updated) });
   }
@@ -27,7 +27,7 @@ async function onTask(i: I, ctx: Ctx, action: string, id: number, arg?: string) 
   const task = await getTask(ctx.db, i.guildId, id);
   if (!task) return fail(i, 'That task no longer exists.');
   const project = task.projectId ? await getProject(ctx.db, i.guildId, task.projectId) : undefined;
-  if (!canModify(task, project, i.user.id, isAdmin(i)))
+  if (!canModify(task, project, i.user.id, await canEditAll(i, ctx)))
     return fail(i, 'Only the owners, creator, project lead or an admin can change this task.');
   const { timezone } = await getConfig(ctx.db, i.guildId);
 
@@ -76,7 +76,7 @@ async function onTask(i: I, ctx: Ctx, action: string, id: number, arg?: string) 
 async function onProject(i: I, ctx: Ctx, action: string, id: number) {
   const project = await getProject(ctx.db, i.guildId, id);
   if (!project) return fail(i, 'That project no longer exists.');
-  if (!canManageProject(project, i.user.id, isAdmin(i)))
+  if (!canManageProject(project, i.user.id, await canEditAll(i, ctx)))
     return fail(i, 'Only the lead, members, creator or an admin can change this project.');
   if (action === 'save') return void (await i.update({ components: [] }));
   if (!i.isAnySelectMenu()) return;

@@ -90,13 +90,33 @@ describe('check-in', () => {
     expect(body).not.toContain('Budget');
   });
 
-  it('pings every team role, or @everyone when none are mapped', async () => {
+  it('org-wide: pings the default role, else every team role, never an implicit @everyone', async () => {
     const m = fakeMessenger();
-    await startCheckin(db, m, { guildId: GUILD, channelId: 'c1' }, now);
-    expect(m.sent[0]?.msg.content).toContain('@everyone');
+    const run = () => startCheckin(db, m, { guildId: GUILD, channelId: 'c1' }, now);
+    await run();
+    expect(m.sent[0]?.msg.content).not.toContain('@everyone');
+    expect(m.sent[0]?.msg.allowedMentions).toEqual({ roles: [] });
+
     await updateConfig(db, GUILD, { teamRoles: { events: 'r-events', finance: 'r-fin' } });
-    await startCheckin(db, m, { guildId: GUILD, channelId: 'c1' }, now);
+    await run();
     expect(m.sent[1]?.msg.allowedMentions).toEqual({ roles: ['r-events', 'r-fin'] });
+
+    await updateConfig(db, GUILD, { defaultPingRoleId: 'r-members' });
+    await run();
+    expect(m.sent[2]?.msg.content).toContain('<@&r-members>');
+    expect(m.sent[2]?.msg.allowedMentions).toEqual({ roles: ['r-members'] });
+
+    await updateConfig(db, GUILD, { defaultPingRoleId: GUILD }); // the @everyone role
+    await run();
+    expect(m.sent[3]?.msg.content).toContain('@everyone');
+    expect(m.sent[3]?.msg.allowedMentions).toEqual({ parse: ['everyone'] });
+  });
+
+  it('team check-ins ignore the default ping', async () => {
+    await updateConfig(db, GUILD, { defaultPingRoleId: 'r-members', teamRoles: { events: 'r-e' } });
+    const m = fakeMessenger();
+    await startCheckin(db, m, { guildId: GUILD, channelId: 'c1', team: 'events' }, now);
+    expect(m.sent[0]?.msg.allowedMentions).toEqual({ roles: ['r-e'] });
   });
 
   it('pings project members for a project check-in', async () => {

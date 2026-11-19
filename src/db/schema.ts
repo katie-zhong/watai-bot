@@ -26,6 +26,11 @@ export const guildConfig = pgTable('guild_config', {
   lastCheckinOn: date('last_checkin_on', { mode: 'string' }),
   teamRoles: jsonb('team_roles').$type<Record<string, string>>().notNull().default({}),
   teamChannels: jsonb('team_channels').$type<Record<string, string>>().notNull().default({}),
+  /** Role pinged by org-wide check-ins. Equal to guildId means @everyone. */
+  defaultPingRoleId: text('default_ping_role_id'),
+  /** Discord roles granted bot access levels (see src/domain/access.ts). */
+  adminRoleIds: ids('admin_role_ids'),
+  managerRoleIds: ids('manager_role_ids'),
 });
 
 export const projects = pgTable(

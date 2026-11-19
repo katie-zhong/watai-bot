@@ -23,7 +23,7 @@ Discord bot that tracks tasks, deadlines and key artifacts for WAT.ai, with auto
 | `/artifact add · remove` | Pin key links to a project |
 | `/milestone add · remove` | Group a project's tasks |
 | `/checkin [team] [project]` | Ping the audience, open a thread seeded with each person's open tasks |
-| `/config show · set · team` | Admin: timezone, morning hour, channels, team roles, scheduled check-in |
+| `/config show · set · team · access` | Bot admin: timezone, morning hour, channels, default ping, team roles, access levels, scheduled check-in |
 | `/help` | Command list |
 
 ## Automation
@@ -33,11 +33,18 @@ Discord bot that tracks tasks, deadlines and key artifacts for WAT.ai, with auto
 - **Ping channels (multi):** task's own → project's → its teams' channels → server default → digest channel.
 - **Weekly digest:** Sunday morning; overdue, blocked, and due this week by team.
 - **Scheduled check-in:** optional, weekly on a chosen weekday.
+- **Check-in pings:** team → that team's role; project → its lead and members; org-wide → the default ping role (any role, or @everyone), else every mapped team role.
 - **Google Sheet:** `Tasks` and `Projects` tabs rewritten ~10 s after any change and hourly.
 
 ## Permissions
 
-Anyone can create tasks and projects and assign anyone. Changing a task: its owners, creator, project lead, or Manage Server. Changing a project: lead, members, creator, or Manage Server. `/config`: Manage Server.
+Bot access levels are granted per Discord role with `/config access`:
+
+| Level | Who | Can |
+| --- | --- | --- |
+| Admin | Manage Server, or an admin role | `/config`, plus everything a manager can |
+| Manager | A manager role (e.g. execs, TPMs) | Edit, close or delete any task or project |
+| Member | Everyone else | Create and assign anything; edit tasks they own or created, projects they lead or are in |
 
 ## Decisions
 
@@ -49,6 +56,7 @@ Anyone can create tasks and projects and assign anyone. Changing a task: its own
 | Pings in shared channels, not DMs | Visibility creates accountability |
 | Sheet is a one-way mirror | Two-way sync needs conflict resolution; edits made in the sheet are overwritten |
 | Multi-select via menus after the command | Slash-command options can't multi-select |
+| Access via bot-level role mapping, not Discord's command permissions | Discord's per-command permissions can hide `/config` but can't express "may edit others' tasks" |
 | Guilds intent only | No privileged intents, so no Discord approval needed |
 | Single package | One deployable; split into workspaces when the web dashboard arrives |
 
