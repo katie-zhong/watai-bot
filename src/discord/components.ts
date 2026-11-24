@@ -4,6 +4,7 @@ import { getConfig, updateConfig } from '../services/config.ts';
 import { getDigest, updateDigest } from '../services/digests.ts';
 import { getProject, updateProject } from '../services/projects.ts';
 import { canModify, getTask, setStatus, updateTask } from '../services/tasks.ts';
+import { onBlastComponent } from './commands/blast.ts';
 import { digestEmbed, digestPanel } from './commands/digest.ts';
 import { configEmbed, configPanel } from './commands/misc.ts';
 import { renderProject } from './commands/project.ts';
@@ -19,6 +20,7 @@ export async function handleComponent(i: I, ctx: Ctx): Promise<void> {
   if (scope === 't') return onTask(i, ctx, action, Number(id), arg);
   if (scope === 'p') return onProject(i, ctx, action, Number(id));
   if (scope === 'd') return onDigest(i, ctx, action, Number(id));
+  if (scope === 'b') return onBlastComponent(i, ctx, action, Number(id));
   if (scope === 'c' && action === 'reminders' && i.isChannelSelectMenu()) {
     if ((await access(i, ctx)) !== 'admin') return fail(i, 'Bot admins only.');
     const updated = await updateConfig(ctx.db, i.guildId, { reminderChannelIds: i.values });

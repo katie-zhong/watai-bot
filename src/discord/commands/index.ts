@@ -1,4 +1,5 @@
 import type { Command } from '../util.ts';
+import { blast } from './blast.ts';
 import { deadlines, mine } from './deadlines.ts';
 import { digest } from './digest.ts';
 import { checkin, config, help } from './misc.ts';
@@ -14,6 +15,7 @@ export const commands: Command[] = [
   milestone,
   checkin,
   digest,
+  blast,
   config,
   help,
 ];

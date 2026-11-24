@@ -58,6 +58,7 @@ describe('command definitions', () => {
       'milestone',
       'checkin',
       'digest',
+      'blast',
       'config',
       'help',
     ]);

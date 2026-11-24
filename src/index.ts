@@ -1,5 +1,6 @@
 import { Client, Events, GatewayIntentBits } from 'discord.js';
 import { connect } from './db/client.ts';
+import { onBlastModal } from './discord/commands/blast.ts';
 import { commands } from './discord/commands/index.ts';
 import { handleComponent } from './discord/components.ts';
 import { registerCommands } from './discord/register.ts';
@@ -48,6 +49,8 @@ client.on(Events.InteractionCreate, async (i) => {
     if (i.isChatInputCommand()) await byName.get(i.commandName)?.execute(i, ctx);
     else if (i.isAutocomplete()) await byName.get(i.commandName)?.autocomplete?.(i, ctx);
     else if (i.isMessageComponent()) await handleComponent(i, ctx);
+    else if (i.isModalSubmit() && i.customId.startsWith('b:modal:'))
+      await onBlastModal(i, Number(i.customId.split(':')[2]));
   } catch (e) {
     console.error('interaction failed:', e);
     if (i.isRepliable()) await fail(i, 'Something went wrong.').catch(() => {});

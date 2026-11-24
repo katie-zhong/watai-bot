@@ -247,6 +247,10 @@ const HELP: [string, string][] = [
   ['/milestone add · remove', 'Group a project’s tasks'],
   ['/checkin', 'Ping the team and open a thread for async updates'],
   ['/digest create · edit · delete · send · list', 'Weekly deadline digests, e.g. one per team'],
+  [
+    '/blast',
+    'Managers: post to every channel with a given name (e.g. all #announcements), with a preview',
+  ],
   ['/config show · set · team · access', 'Bot admins: channels, default ping, team roles, access'],
 ];
 
